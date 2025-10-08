@@ -793,6 +793,22 @@ public:
     m_allocator.destroyBuffer(scratchBuffer);
   }
 
+  void createBottomLevelAS()
+  {
+    SCOPED_TIMER(__FUNCTION__);
+
+    // Prepare geometry information for all meshes
+    m_blasAccel.resize(m_sceneResource.meshes.size());
+
+    // For now, just log that we're ready to build BLAS
+    LOGI("  Ready to build %zu bottom-level acceleration structures\n", m_sceneResource.meshes.size());
+
+    // TODO: In Phase 3, we'll add the actual building:
+    // For each mesh
+    //   - create acceleration structure geometry from internal mesh primitive (primitiveToGeometry)
+    //   - create acceleration structure
+  }
+
 private:
   // Application and core components
   nvapp::Application*     m_app{};             // The application framework
