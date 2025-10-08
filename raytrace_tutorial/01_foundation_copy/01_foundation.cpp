@@ -809,6 +809,42 @@ public:
     //   - create acceleration structure
   }
 
+  void createTopLevelAS()
+  {
+    SCOPED_TIMER(__FUNCTION__);
+
+    // VkTransformMatrixKHR is row-major 3x4, glm::mat4 is column-major; transpose before memcpy.
+    auto toTransformMatrixKHR = [](const glm::mat4& m) {
+      VkTransformMatrixKHR t;
+      memcpy(&t, glm::value_ptr(glm::transpose(m)), sizeof(t));
+      return t;
+    };
+
+    // Prepare instance data for TLAS
+    std::vector<VkAccelerationStructureInstanceKHR> tlasInstances;
+    tlasInstances.reserve(m_sceneResource.instances.size());
+
+    for(const shaderio::GltfInstance& instance : m_sceneResource.instances)
+    {
+      VkAccelerationStructureInstanceKHR asInstance{};
+      asInstance.transform           = toTransformMatrixKHR(instance.transform);  // Position of the instance
+      asInstance.instanceCustomIndex = instance.meshIndex;                        // gl_InstanceCustomIndexEXT
+      // asInstance.accelerationStructureReference = m_blasAccel[instance.meshIndex].address;  // Will be set in Phase 3
+      asInstance.instanceShaderBindingTableRecordOffset = 0;  // We will use the same hit group for all objects
+      asInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;  // No culling - double sided
+      asInstance.mask  = 0xFF;
+      tlasInstances.emplace_back(asInstance);
+    }
+
+    // For now, just log that we're ready to build TLAS
+    LOGI("  Ready to build top-level acceleration structure with %zu instances\n", tlasInstances.size());
+
+    // TODO: In Phase 3, we'll add the actual building:
+    // 1. Create and upload instance buffer
+    // 2. Create TLAS geometry from instances
+    // 3. Call createAccelerationStructure with TLAS type
+  }
+
 private:
   // Application and core components
   nvapp::Application*     m_app{};             // The application framework
