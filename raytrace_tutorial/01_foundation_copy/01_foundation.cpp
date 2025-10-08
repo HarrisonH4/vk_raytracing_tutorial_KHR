@@ -724,6 +724,75 @@ public:
     rangeInfo = VkAccelerationStructureBuildRangeInfoKHR{.primitiveCount = triangleCount};
   }
 
+  // Generic function to create an acceleration structure (BLAS or TLAS)
+  // Note: This function creates and destroys a scratch buffer for each call.
+  // Not optimal but easier to read and understand. See Helper function for a better approach.
+  void createAccelerationStructure(VkAccelerationStructureTypeKHR asType,  // The type of acceleration structure (BLAS or TLAS)
+                                   nvvk::AccelerationStructure& accelStruct,  // The acceleration structure to create
+                                   VkAccelerationStructureGeometryKHR& asGeometry,  // The geometry to build the acceleration structure from
+                                   VkAccelerationStructureBuildRangeInfoKHR& asBuildRangeInfo,  // The range info for building the acceleration structure
+                                   VkBuildAccelerationStructureFlagsKHR flags  // Build flags (e.g. prefer fast trace)
+  )
+  {
+    VkDevice device = m_app->getDevice();
+
+    // Helper function to align a value to a given alignment
+    auto alignUp = [](auto value, size_t alignment) noexcept { return ((value + alignment - 1) & ~(alignment - 1)); };
+
+    // Fill the build information with the current information, the rest is filled later (scratch buffer and destination AS)
+    VkAccelerationStructureBuildGeometryInfoKHR asBuildInfo{
+        .sType         = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+        .type          = asType,  // The type of acceleration structure (BLAS or TLAS)
+        .flags         = flags,   // Build flags (e.g. prefer fast trace)
+        .mode          = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,  // Build mode vs update
+        .geometryCount = 1,                                               // Deal with one geometry at a time
+        .pGeometries   = &asGeometry,  // The geometry to build the acceleration structure from
+    };
+
+    // One geometry at a time (could be multiple)
+    std::vector<uint32_t> maxPrimCount(1);
+    maxPrimCount[0] = asBuildRangeInfo.primitiveCount;
+
+    // Find the size of the acceleration structure and the scratch buffer
+    VkAccelerationStructureBuildSizesInfoKHR asBuildSize{.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
+    vkGetAccelerationStructureBuildSizesKHR(device, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &asBuildInfo,
+                                            maxPrimCount.data(), &asBuildSize);
+
+    // Make sure the scratch buffer is properly aligned
+    VkDeviceSize scratchSize = alignUp(asBuildSize.buildScratchSize, m_asProperties.minAccelerationStructureScratchOffsetAlignment);
+
+    // Create the scratch buffer to store the temporary data for the build
+    nvvk::Buffer scratchBuffer;
+    NVVK_CHECK(m_allocator.createBuffer(scratchBuffer, scratchSize,
+                                        VK_BUFFER_USAGE_2_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_2_SHADER_DEVICE_ADDRESS_BIT
+                                            | VK_BUFFER_USAGE_2_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
+                                        VMA_MEMORY_USAGE_AUTO, {}, m_asProperties.minAccelerationStructureScratchOffsetAlignment));
+
+    // Create the acceleration structure
+    VkAccelerationStructureCreateInfoKHR createInfo{
+        .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
+        .size  = asBuildSize.accelerationStructureSize,  // The size of the acceleration structure
+        .type  = asType,                                 // The type of acceleration structure (BLAS or TLAS)
+    };
+    NVVK_CHECK(m_allocator.createAcceleration(accelStruct, createInfo));
+
+    // Build the acceleration structure
+    {
+      VkCommandBuffer cmd = m_app->createTempCmdBuffer();
+
+      // Fill with new information for the build,scratch buffer and destination AS
+      asBuildInfo.dstAccelerationStructure  = accelStruct.accel;
+      asBuildInfo.scratchData.deviceAddress = scratchBuffer.address;
+
+      VkAccelerationStructureBuildRangeInfoKHR* pBuildRangeInfo = &asBuildRangeInfo;
+      vkCmdBuildAccelerationStructuresKHR(cmd, 1, &asBuildInfo, &pBuildRangeInfo);
+
+      m_app->submitAndWaitTempCmdBuffer(cmd);
+    }
+    // Cleanup the scratch buffer
+    m_allocator.destroyBuffer(scratchBuffer);
+  }
+
 private:
   // Application and core components
   nvapp::Application*     m_app{};             // The application framework
