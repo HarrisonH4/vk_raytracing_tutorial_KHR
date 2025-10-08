@@ -757,12 +757,19 @@ int main(int argc, char** argv)
 
   // Setting up the Vulkan context, instance and device extensions
   VkPhysicalDeviceShaderObjectFeaturesEXT shaderObjectFeatures{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_OBJECT_FEATURES_EXT};
+  //< Ray Tracing Features
+  VkPhysicalDeviceAccelerationStructureFeaturesKHR accelFeature{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR};
+  VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtPipelineFeature{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR};
   nvvk::ContextInitInfo vkSetup{
       .instanceExtensions = {VK_EXT_DEBUG_UTILS_EXTENSION_NAME},
       .deviceExtensions =
           {
               {VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME},
               {VK_EXT_SHADER_OBJECT_EXTENSION_NAME, &shaderObjectFeatures},
+              //<   ---- Ray Tracing Device Extensions ----
+              {VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME, &accelFeature},    //< Build Acceleration Structures
+              {VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME, &rtPipelineFeature}, //< Use vkCmdTraceRaysKHR
+              {VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME}                  //< Required by Ray Tracing Pipeline
           },
   };
   if(!appInfo.headless)
