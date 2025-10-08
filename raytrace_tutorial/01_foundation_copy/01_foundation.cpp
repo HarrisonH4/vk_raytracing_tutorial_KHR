@@ -807,10 +807,21 @@ public:
     // For now, just log that we're ready to build BLAS
     LOGI("  Ready to build %zu bottom-level acceleration structures\n", m_sceneResource.meshes.size());
 
-    // TODO: In Phase 3, we'll add the actual building:
-    // For each mesh
-    //   - create acceleration structure geometry from internal mesh primitive (primitiveToGeometry)
-    //   - create acceleration structure
+    for(uint32_t blasID = 0; blasID < m_sceneResource.meshes.size(); blasID++)
+    {
+      VkAccelerationStructureGeometryKHR       asGeometry{};
+      VkAccelerationStructureBuildRangeInfoKHR asBuildRangeInfo{};
+
+      //< Converts the Primitive Information to Acceleration Strucutre Geometry
+      primitiveToGeometry(m_sceneResource.meshes[blasID], asGeometry, asBuildRangeInfo);
+
+      createAccelerationStructure(VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR
+          , m_blasAccel[blasID]
+          , asGeometry
+          , asBuildRangeInfo
+          , VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
+      NVVK_DBG_NAME(m_blasAccel[blasID].accel);
+    }
   }
 
   void createTopLevelAS()
