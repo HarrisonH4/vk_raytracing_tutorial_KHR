@@ -1,0 +1,6 @@
+To build the project, use these cmake commands:
+
+cmake -B build -S .
+cmake --build build -j 8
+
+These are case sensitive and are necessary to run it from git.
