@@ -694,6 +694,36 @@ public:
   // Accessor for camera manipulator
   std::shared_ptr<nvutils::CameraManipulator> getCameraManipulator() const { return m_cameraManip; }
 
+  //< Geometry Conversion Helper
+  void primitiveToGeometry(const shaderio::GltfMesh&                 gltfMesh,
+                           VkAccelerationStructureGeometryKHR&       geometry,
+                           VkAccelerationStructureBuildRangeInfoKHR& rangeInfo)
+  {
+    const shaderio::TriangleMesh triMesh       = gltfMesh.triMesh;
+    const auto                   triangleCount = static_cast<uint32_t>(triMesh.indices.count / 3U);
+
+    // Describe buffer as array of VertexObj.
+    VkAccelerationStructureGeometryTrianglesDataKHR triangles{
+        .sType        = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
+        .vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,  // vec3 vertex position data
+        .vertexData   = {.deviceAddress = VkDeviceAddress(gltfMesh.gltfBuffer) + triMesh.positions.offset},
+        .vertexStride = triMesh.positions.byteStride,
+        .maxVertex    = triMesh.positions.count - 1,
+        .indexType    = VkIndexType(gltfMesh.indexType),  // Index type (VK_INDEX_TYPE_UINT16 or VK_INDEX_TYPE_UINT32)
+        .indexData    = {.deviceAddress = VkDeviceAddress(gltfMesh.gltfBuffer) + triMesh.indices.offset},
+    };
+
+    // Identify the above data as containing opaque triangles.
+    geometry = VkAccelerationStructureGeometryKHR{
+        .sType        = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+        .geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
+        .geometry     = {.triangles = triangles},
+        .flags        = VK_GEOMETRY_NO_DUPLICATE_ANY_HIT_INVOCATION_BIT_KHR | VK_GEOMETRY_OPAQUE_BIT_KHR,
+    };
+
+    rangeInfo = VkAccelerationStructureBuildRangeInfoKHR{.primitiveCount = triangleCount};
+  }
+
 private:
   // Application and core components
   nvapp::Application*     m_app{};             // The application framework
