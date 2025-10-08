@@ -718,6 +718,27 @@ private:
   nvshaders::Tonemapper    m_tonemapper{};      // Tonemapper for post-processing effects
   shaderio::TonemapperData m_tonemapperData{};  // Tonemapper data used to pass parameters to the tonemapper shader
   glm::vec2 m_metallicRoughnessOverride{-0.01f, -0.01f};  // Override values for metallic and roughness, used in the UI to control the material properties
+
+  //< Ray Tracing Pipeline Components
+  nvvk::DescriptorPack m_rtDescPack;            //< Ray Tracing Descriptor Bindings
+  VkPipeline           m_rtPipeline{};          //< Ray Tracing Pipeline
+  VkPipelineLayout     m_rtPipelineLayout{};    //< Ray Tracing Pipeline Layout
+
+  //< Acceleration Structure Components
+  std::vector<nvvk::AccelerationStructure> m_blasAccel; //< Bottom-Level Acceleration Structures
+  nvvk::AccelerationStructure              m_tlasAccel; //< Top-Level Acceleration Structures
+
+  //< Direct SBT Management
+  nvvk::Buffer                    m_sbtBuffer;          //< Buffer for Shader Binding Table
+  std::vector<uint8_t>            m_shaderHandles;      //< Storage for Shader Group Handles
+  VkStridedDeviceAddressRegionKHR m_raygenRegion{};     //< Ray Generation Shader Region
+  VkStridedDeviceAddressRegionKHR m_missRegion{};       //< Miss Shader Region
+  VkStridedDeviceAddressRegionKHR m_hitRegion{};        //< Hit Shader Region
+  VkStridedDeviceAddressRegionKHR m_callableRegion{};   //< Callable Shader Region
+
+  //< Ray Tracing Properties
+  VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR};
+  VkPhysicalDeviceAccelerationStructurePropertiesKHR m_asProperties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR};
 };
 
 
