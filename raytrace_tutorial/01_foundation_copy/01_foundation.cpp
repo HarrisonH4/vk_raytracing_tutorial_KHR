@@ -158,10 +158,6 @@ public:
     prop2.pNext          = &m_rtProperties;
     vkGetPhysicalDeviceProperties2(m_app->getPhysicalDevice(), &prop2);
 
-    //< Setup Acceleration Structure Infrastructure
-    createBottomLevelAS();
-    createTopLevelAS();
-
     createScene();                        // Create the scene with a teapot and a plane
     createGraphicsDescriptorSetLayout();  // Create the descriptor set layout for the graphics pipeline
     createGraphicsPipelineLayout();       // Create the graphics pipeline layout
@@ -173,6 +169,10 @@ public:
 
     // Initialize the tonemapper also with proe-compiled shader
     m_tonemapper.init(&m_allocator, std::span(tonemapper_slang));
+
+        //< Setup Acceleration Structure Infrastructurej
+    createBottomLevelAS();
+    createTopLevelAS();
   }
 
   //-------------------------------------------------------------------------------
