@@ -203,6 +203,13 @@ public:
       m_allocator.destroyImage(texture);
     }
 
+    //< Cleanup Acceleration Structures 
+    for(auto& blas : m_blasAccel)
+    {
+      m_allocator.destroyAcceleration(blas);
+    }
+    m_allocator.destroyAcceleration(m_tlasAccel);
+
     m_gBuffers.deinit();
     m_stagingUploader.deinit();
     m_skySimple.deinit();
