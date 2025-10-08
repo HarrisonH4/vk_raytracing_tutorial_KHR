@@ -993,6 +993,24 @@ private:
     LOGI("Ray tracing descriptor layout created\n");
   }
 
+  void createShaderBindingTable(const VkRayTracingPipelineCreateInfoKHR& rtPipelineInfo)
+  {
+    SCOPED_TIMER(__FUNCTION__);
+    m_allocator.destroyBuffer(m_sbtBuffer);  // Cleanup when re-creating
+
+    // TODO: In Phase 5, we'll populate this with actual shader data
+    // For now, just prepare the infrastructure
+
+    // Calculate required SBT buffer size (will be populated in Phase 5)
+    size_t bufferSize = 1024;  // Placeholder size
+
+    // Create SBT buffer
+    NVVK_CHECK(m_allocator.createBuffer(m_sbtBuffer, bufferSize, VK_BUFFER_USAGE_2_SHADER_BINDING_TABLE_BIT_KHR, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
+                                        VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT));
+    NVVK_DBG_NAME(m_sbtBuffer.buffer);
+    LOGI("Shader binding table buffer created (will be populated in Phase 5)\n");
+  }
+
 private:
   // Application and core components
   nvapp::Application*     m_app{};             // The application framework
