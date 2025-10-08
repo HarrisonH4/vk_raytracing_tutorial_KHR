@@ -98,14 +98,6 @@ class RtFoundation : public nvapp::IAppElement
     eImgTonemapped
   };
 
-  // Binding Points
-  enum BindingPoints
-  {
-    eTextures = 0,  // Binding point for textures
-    eOutImage,      // Binding point for output image
-    eTlas,          // Top-level acceleration structure
-  };
-
 public:
   RtFoundation()           = default;
   ~RtFoundation() override = default;
@@ -906,6 +898,26 @@ public:
 
     LOGI("  Top-level acceleration structures built successfully\n");
     m_allocator.destroyBuffer(tlasInstancesBuffer);  // Cleanup
+  }
+
+private:
+  void createRaytraceDescriptorLayout()
+  {
+    SCOPED_TIMER(__FUNCTION__);
+    nvvk::DescriptorBindings bindings;
+    bindings.addBinding({.binding         = shaderio::BindingPoints::eTlas,
+                         .descriptorType  = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
+                         .descriptorCount = 1,
+                         .stageFlags      = VK_SHADER_STAGE_ALL});
+    bindings.addBinding({.binding         = shaderio::BindingPoints::eOutImage,
+                         .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+                         .descriptorCount = 1,
+                         .stageFlags      = VK_SHADER_STAGE_ALL});
+
+    // Creating a PUSH descriptor set and set layout from the bindings
+    m_rtDescPack.init(bindings, m_app->getDevice(), 0, VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR);
+
+    LOGI("Ray tracing descriptor layout created\n");
   }
 
 private:
