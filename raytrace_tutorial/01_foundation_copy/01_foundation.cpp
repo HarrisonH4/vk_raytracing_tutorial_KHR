@@ -915,7 +915,6 @@ public:
     SCOPED_TIMER(__FUNCTION__);
 
     // For re-creation
-    m_allocator.destroyBuffer(m_sbtBuffer);
     vkDestroyPipeline(m_app->getDevice(), m_rtPipeline, nullptr);
     vkDestroyPipelineLayout(m_app->getDevice(), m_rtPipelineLayout, nullptr);
 
@@ -1024,17 +1023,64 @@ private:
     SCOPED_TIMER(__FUNCTION__);
     m_allocator.destroyBuffer(m_sbtBuffer);  // Cleanup when re-creating
 
-    // TODO: In Phase 5, we'll populate this with actual shader data
-    // For now, just prepare the infrastructure
+    VkDevice device          = m_app->getDevice();
+    uint32_t handleSize      = m_rtProperties.shaderGroupHandleSize;
+    uint32_t handleAlignment = m_rtProperties.shaderGroupHandleAlignment;
+    uint32_t baseAlignment   = m_rtProperties.shaderGroupBaseAlignment;
+    uint32_t groupCount      = rtPipelineInfo.groupCount;
 
-    // Calculate required SBT buffer size (will be populated in Phase 5)
-    size_t bufferSize = 1024;  // Placeholder size
+    // Get shader group handles
+    size_t dataSize = handleSize * groupCount;
+    m_shaderHandles.resize(dataSize);
+    NVVK_CHECK(vkGetRayTracingShaderGroupHandlesKHR(device, m_rtPipeline, 0, groupCount, dataSize, m_shaderHandles.data()));
+
+    // Calculate SBT buffer size with proper alignment
+    auto     alignUp      = [](uint32_t size, uint32_t alignment) { return (size + alignment - 1) & ~(alignment - 1); };
+    uint32_t raygenSize   = alignUp(handleSize, handleAlignment);
+    uint32_t missSize     = alignUp(handleSize, handleAlignment);
+    uint32_t hitSize      = alignUp(handleSize, handleAlignment);
+    uint32_t callableSize = 0;  // No callable shaders in this tutorial
+
+    // Ensure each region starts at a baseAlignment boundary
+    uint32_t raygenOffset   = 0;
+    uint32_t missOffset     = alignUp(raygenSize, baseAlignment);
+    uint32_t hitOffset      = alignUp(missOffset + missSize, baseAlignment);
+    uint32_t callableOffset = alignUp(hitOffset + hitSize, baseAlignment);
+
+    size_t bufferSize = callableOffset + callableSize;
 
     // Create SBT buffer
     NVVK_CHECK(m_allocator.createBuffer(m_sbtBuffer, bufferSize, VK_BUFFER_USAGE_2_SHADER_BINDING_TABLE_BIT_KHR, VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
                                         VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT));
     NVVK_DBG_NAME(m_sbtBuffer.buffer);
-    LOGI("Shader binding table buffer created (will be populated in Phase 5)\n");
+
+    // Populate SBT buffer
+    uint8_t* pData = static_cast<uint8_t*>(m_sbtBuffer.mapping);
+
+    // Ray generation shader (group 0)
+    memcpy(pData + raygenOffset, m_shaderHandles.data() + 0 * handleSize, handleSize);
+    m_raygenRegion.deviceAddress = m_sbtBuffer.address + raygenOffset;
+    m_raygenRegion.stride        = raygenSize;
+    m_raygenRegion.size          = raygenSize;
+
+    // Miss shader (group 1)
+    memcpy(pData + missOffset, m_shaderHandles.data() + 1 * handleSize, handleSize);
+    m_missRegion.deviceAddress = m_sbtBuffer.address + missOffset;
+    m_missRegion.stride        = missSize;
+    m_missRegion.size          = missSize;
+
+    // Hit shader (group 2)
+    memcpy(pData + hitOffset, m_shaderHandles.data() + 2 * handleSize, handleSize);
+    m_hitRegion.deviceAddress = m_sbtBuffer.address + hitOffset;
+    m_hitRegion.stride        = hitSize;
+    m_hitRegion.size          = hitSize;
+
+    // Callable shaders (none in this tutorial)
+    m_callableRegion.deviceAddress = 0;
+    m_callableRegion.stride        = 0;
+    m_callableRegion.size          = 0;
+
+    LOGI("Shader binding table created and populated \n");
   }
 
 private:
