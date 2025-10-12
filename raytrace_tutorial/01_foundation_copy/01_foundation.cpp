@@ -931,9 +931,18 @@ public:
     for(auto& s : stages)
       s.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 
-    // TODO: In Phase 5, we'll add actual shader compilation
-    // For now, create empty stages to test pipeline creation
-    LOGI("Creating ray tracing pipeline structure (shaders will be added in Phase 5)\n");
+    // Compile shader, fallback to pre-compiled
+    VkShaderModuleCreateInfo shaderCode = compileSlangShader("rtbasic.slang", rtbasic_slang);
+
+    stages[eRaygen].pNext     = &shaderCode;
+    stages[eRaygen].pName     = "rgenMain";
+    stages[eRaygen].stage     = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    stages[eMiss].pNext       = &shaderCode;
+    stages[eMiss].pName       = "rmissMain";
+    stages[eMiss].stage       = VK_SHADER_STAGE_MISS_BIT_KHR;
+    stages[eClosestHit].pNext = &shaderCode;
+    stages[eClosestHit].pName = "rchitMain";
+    stages[eClosestHit].stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
     // Shader groups
     VkRayTracingShaderGroupCreateInfoKHR group{VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR};
@@ -973,10 +982,17 @@ public:
     vkCreatePipelineLayout(m_app->getDevice(), &pipeline_layout_create_info, nullptr, &m_rtPipelineLayout);
     NVVK_DBG_NAME(m_rtPipelineLayout);
 
+    // Assemble the shader stages and recursion depth info into the ray tracing pipeline
     VkRayTracingPipelineCreateInfoKHR rtPipelineInfo{VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
+    rtPipelineInfo.stageCount                   = static_cast<uint32_t>(stages.size());
+    rtPipelineInfo.pStages                      = stages.data();
+    rtPipelineInfo.groupCount                   = static_cast<uint32_t>(shader_groups.size());
+    rtPipelineInfo.pGroups                      = shader_groups.data();
+    rtPipelineInfo.maxPipelineRayRecursionDepth = std::max(3U, m_rtProperties.maxRayRecursionDepth);
+    rtPipelineInfo.layout                       = m_rtPipelineLayout;
+    vkCreateRayTracingPipelinesKHR(m_app->getDevice(), {}, {}, 1, &rtPipelineInfo, nullptr, &m_rtPipeline);
+    NVVK_DBG_NAME(m_rtPipeline);
 
-    // TODO: In Phase 5, we'll add actual shader stages and create the pipeline
-    // For now, just log that the pipeline layout is ready
     LOGI("Ray tracing pipeline layout created successfully\n");
     
     // Create the shader binding table for this pipeline
