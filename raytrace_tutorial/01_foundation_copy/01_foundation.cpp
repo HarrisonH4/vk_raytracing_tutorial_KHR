@@ -170,9 +170,13 @@ public:
     // Initialize the tonemapper also with proe-compiled shader
     m_tonemapper.init(&m_allocator, std::span(tonemapper_slang));
 
-        //< Setup Acceleration Structure Infrastructurej
+    //< Setup Acceleration Structure Infrastructurej
     createBottomLevelAS();
     createTopLevelAS();
+
+    //< Setup Ray Tracing Pipeline Infrastructure
+    createRaytraceDescriptorLayout();
+    createRayTracingPipeline();
   }
 
   //-------------------------------------------------------------------------------
@@ -202,6 +206,12 @@ public:
     {
       m_allocator.destroyImage(texture);
     }
+
+    //< Ray Tracing Components 
+    vkDestroyPipelineLayout(device, m_rtPipelineLayout, nullptr);
+    vkDestroyPipeline(device, m_rtPipeline, nullptr);
+    m_rtDescPack.deinit();
+    m_allocator.destroyBuffer(m_sbtBuffer);
 
     //< Cleanup Acceleration Structures 
     for(auto& blas : m_blasAccel)
@@ -955,9 +965,9 @@ public:
     VkPipelineLayoutCreateInfo pipeline_layout_create_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     pipeline_layout_create_info.pushConstantRangeCount = 1;
     pipeline_layout_create_info.pPushConstantRanges    = &push_constant;
-
+    
     // Descriptor sets: one specific to ray tracing, and one shared with the rasterization pipeline
-    std::array<VkDescriptorSetLayout, 2> layouts = ;
+    std::array<VkDescriptorSetLayout, 2> layouts = {{m_descPack.getLayout(), m_rtDescPack.getLayout()}};
     pipeline_layout_create_info.setLayoutCount   = uint32_t(layouts.size());
     pipeline_layout_create_info.pSetLayouts      = layouts.data();
     vkCreatePipelineLayout(m_app->getDevice(), &pipeline_layout_create_info, nullptr, &m_rtPipelineLayout);
@@ -968,7 +978,7 @@ public:
     // TODO: In Phase 5, we'll add actual shader stages and create the pipeline
     // For now, just log that the pipeline layout is ready
     LOGI("Ray tracing pipeline layout created successfully\n");
-
+    
     // Create the shader binding table for this pipeline
     createShaderBindingTable(rtPipelineInfo);
   }
