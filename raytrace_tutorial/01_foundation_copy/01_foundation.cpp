@@ -52,7 +52,7 @@
 #include "_autogen/sky_simple.slang.h"  // from nvpro_core2
 #include "_autogen/tonemapper.slang.h"  //   "    "
 #include "_autogen/foundation.slang.h"  // Local shader
-
+#include "_autogen/rtbasic.slang.h"     // Local Shader
 
 #include <nvaftermath/aftermath.hpp>       // Nsight Aftermath for crash tracking and shader debugging
 #include <nvapp/application.hpp>           // Application framework
