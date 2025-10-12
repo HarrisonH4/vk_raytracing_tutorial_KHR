@@ -1083,6 +1083,48 @@ private:
     LOGI("Shader binding table created and populated \n");
   }
 
+  void raytraceScene(VkCommandBuffer cmd)
+  {
+    NVVK_DBG_SCOPE(cmd);  // <-- Helps to debug in NSight
+
+    // Ray trace pipeline
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipeline);
+
+    // Bind the descriptor sets for the graphics pipeline (making textures available to the shaders)
+    const VkBindDescriptorSetsInfo bindDescriptorSetsInfo{.sType      = VK_STRUCTURE_TYPE_BIND_DESCRIPTOR_SETS_INFO,
+                                                          .stageFlags = VK_SHADER_STAGE_ALL,
+                                                          .layout     = m_rtPipelineLayout,
+                                                          .firstSet   = 0,
+                                                          .descriptorSetCount = 1,
+                                                          .pDescriptorSets    = m_descPack.getSetPtr()};
+    vkCmdBindDescriptorSets2(cmd, &bindDescriptorSetsInfo);
+
+    // Push descriptor sets for ray tracing
+    nvvk::WriteSetContainer write{};
+    write.append(m_rtDescPack.makeWrite(shaderio::BindingPoints::eTlas), m_tlasAccel);
+    write.append(m_rtDescPack.makeWrite(shaderio::BindingPoints::eOutImage), m_gBuffers.getColorImageView(eImgRendered),
+                 VK_IMAGE_LAYOUT_GENERAL);
+    vkCmdPushDescriptorSetKHR(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rtPipelineLayout, 1, write.size(), write.data());
+
+    // Push constant information
+    shaderio::TutoPushConstant pushValues{
+        .sceneInfoAddress = (shaderio::GltfSceneInfo*)m_sceneResource.bSceneInfo.address,
+    };
+    const VkPushConstantsInfo pushInfo{.sType      = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
+                                       .layout     = m_rtPipelineLayout,
+                                       .stageFlags = VK_SHADER_STAGE_ALL,
+                                       .size       = sizeof(shaderio::TutoPushConstant),
+                                       .pValues    = &pushValues};
+    vkCmdPushConstants2(cmd, &pushInfo);
+
+    // Ray trace
+    const VkExtent2D& size = m_app->getViewportSize();
+    vkCmdTraceRaysKHR(cmd, &m_raygenRegion, &m_missRegion, &m_hitRegion, &m_callableRegion, size.width, size.height, 1);
+
+    // Barrier to make sure the image is ready for Tonemapping
+    nvvk::cmdMemoryBarrier(cmd, VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
+  }
+
 private:
   // Application and core components
   nvapp::Application*     m_app{};             // The application framework
