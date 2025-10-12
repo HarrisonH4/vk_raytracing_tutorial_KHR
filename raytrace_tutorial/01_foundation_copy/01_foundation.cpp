@@ -315,7 +315,14 @@ public:
     // Update the scene information buffer, this cannot be done in between dynamic rendering
     updateSceneBuffer(cmd);
 
-    rasterScene(cmd);
+    if(m_useRayTracing)
+    {
+      raytraceScene(cmd);
+    }
+    else
+    {
+      rasterScene(cmd);
+    }
 
     postProcess(cmd);
   }
@@ -1178,6 +1185,8 @@ private:
   //< Ray Tracing Properties
   VkPhysicalDeviceRayTracingPipelinePropertiesKHR m_rtProperties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR};
   VkPhysicalDeviceAccelerationStructurePropertiesKHR m_asProperties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR};
+
+  bool m_useRayTracing = true;
 };
 
 
