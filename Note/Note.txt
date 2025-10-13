@@ -4,3 +4,11 @@ cmake -B build -S .
 cmake --build build -j 8
 
 These are case sensitive and are necessary to run it from git.
+
+If doing work at any of the Uni buildings,
+1st - Check the drivers are in date...
+2nd - Run these commands to whatever stuff you need.
+
+set VULKAN_SDK=C:\VulkanSDK\1.3.261.1
+set PATH=%VULKAN_SDK%\Bin;%PATH%
+set CMAKE_PREFIX_PATH=%VULKAN_SDK%
