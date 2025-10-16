@@ -244,6 +244,8 @@ public:
     // Setting panel
     if(ImGui::Begin("Settings"))
     {
+      // Ray tracing toggle
+      ImGui::Checkbox("Use Ray Tracing", &m_useRayTracing);
       if(ImGui::CollapsingHeader("Camera"))
         nvgui::CameraWidget(m_cameraManip);
       if(ImGui::CollapsingHeader("Environment"))
@@ -355,7 +357,14 @@ public:
     if(reload)
     {
       vkQueueWaitIdle(m_app->getQueue(0).queue);
-      compileAndCreateGraphicsShaders();  // Recompile shaders on F5 key press
+      if(m_useRayTracing)
+      {
+        createRayTracingPipeline();
+      }
+      else
+      {
+        compileAndCreateGraphicsShaders();
+      }
     }
   }
 
