@@ -1194,6 +1194,8 @@ private:
 // The main function, entry point of the application
 int main(int argc, char** argv)
 {
+  _putenv("VK_LAYER_PATH=C:\\Users\\c2031779\\Desktop\\VulkanSDK\\1.4.313.2\\Bin");
+
   nvapp::ApplicationCreateInfo appInfo{};
 
   // Parsing the command line
