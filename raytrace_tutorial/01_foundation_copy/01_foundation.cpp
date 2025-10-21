@@ -152,12 +152,6 @@ public:
     };
     m_gBuffers.init(gBufferInit);
 
-    //<     ---- Get Ray Tracing Properties ----
-    VkPhysicalDeviceProperties2 prop2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
-    m_rtProperties.pNext = &m_asProperties;
-    prop2.pNext          = &m_rtProperties;
-    vkGetPhysicalDeviceProperties2(m_app->getPhysicalDevice(), &prop2);
-
     createScene();                        // Create the scene with a teapot and a plane
     createGraphicsDescriptorSetLayout();  // Create the descriptor set layout for the graphics pipeline
     createGraphicsPipelineLayout();       // Create the graphics pipeline layout
@@ -169,6 +163,12 @@ public:
 
     // Initialize the tonemapper also with proe-compiled shader
     m_tonemapper.init(&m_allocator, std::span(tonemapper_slang));
+
+    //<     ---- Get Ray Tracing Properties ----
+    VkPhysicalDeviceProperties2 prop2{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+    m_rtProperties.pNext = &m_asProperties;
+    prop2.pNext          = &m_rtProperties;
+    vkGetPhysicalDeviceProperties2(m_app->getPhysicalDevice(), &prop2);
 
     //< Setup Acceleration Structure Infrastructurej
     createBottomLevelAS();
@@ -879,7 +879,7 @@ public:
       VkAccelerationStructureInstanceKHR asInstance{};
       asInstance.transform           = toTransformMatrixKHR(instance.transform);  // Position of the instance
       asInstance.instanceCustomIndex = instance.meshIndex;                        // gl_InstanceCustomIndexEXT
-      // asInstance.accelerationStructureReference = m_blasAccel[instance.meshIndex].address;  // Will be set in Phase 3
+      asInstance.accelerationStructureReference = m_blasAccel[instance.meshIndex].address;  // Will be set in Phase 3
       asInstance.instanceShaderBindingTableRecordOffset = 0;  // We will use the same hit group for all objects
       asInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_CULL_DISABLE_BIT_NV;  // No culling - double sided
       asInstance.mask  = 0xFF;
