@@ -3,6 +3,9 @@
 #include "nvshaders/constants.h.slang"
 
 #include "common/shaders/pbr.h.slang"
+#include "nvshaders/sky_functions.h.slang"
+
+#define MISS_DEPTH 1000
 
 // clang-format off
 // Push constants containing scene information and camera data
@@ -148,10 +151,17 @@ void rchitMain(inout HitPayload payload, in BuiltInTriangleIntersectionAttribute
 [shader("miss")]
 void rmissMain(inout HitPayload payload)
 {
-    // Set background color when ray misses all geometry
-    // In a full implementation, this could sample from:
-    // - Skybox textures
-    // - Procedural sky gradients
-    // - Environment maps
-    payload.color = float3(0.5, 0.5, 0.5); // Gray background
+    GltfSceneInfo sceneInfo = pushConst.sceneInfoAddress[0];
+    
+    if(sceneInfo.useSky == 1)
+    {
+        float3 skyColor = evalSimpleSky(sceneInfo.skySimpleParam, WorldRayDirection());
+        payload.color += skyColor * payload.weight;
+    }
+    else
+    {
+        payload.color += sceneInfo.backgroundColor * payload.weight;
+    }
+    
+    payload.depth = MISS_DEPTH;
 }
