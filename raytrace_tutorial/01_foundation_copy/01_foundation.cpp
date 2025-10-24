@@ -54,6 +54,9 @@
 #include "_autogen/foundation.slang.h"  // Local shader
 #include "_autogen/rtbasic.slang.h"     // Local Shader
 
+//< My Own Shader for Voxelization
+#include "_autogen/voxelization.slang.h"
+
 #include <nvaftermath/aftermath.hpp>       // Nsight Aftermath for crash tracking and shader debugging
 #include <nvapp/application.hpp>           // Application framework
 #include <nvapp/elem_camera.hpp>           // Camera manipulator
