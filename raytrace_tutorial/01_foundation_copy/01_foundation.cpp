@@ -588,6 +588,8 @@ public:
     shaderInfo.pCode     = shaderCode.pCode;
     vkCreateShadersEXT(m_app->getDevice(), 1U, &shaderInfo, nullptr, &m_fragmentShader);
     NVVK_DBG_NAME(m_fragmentShader);
+
+    shaderInfo.stage    = VK_SHADER_STAGE_ALL;
   }
 
   //---------------------------------------------------------------------------------------------------------------
@@ -1166,7 +1168,6 @@ private:
   // Shaders
   VkShaderEXT m_vertexShader{};    // The vertex shader used to render the scene
   VkShaderEXT m_fragmentShader{};  // The fragment shader used to render the scene
-
 
   // Scene information buffer (UBO)
   nvsamples::GltfSceneResource m_sceneResource{};  // The GLTF scene resource, contains all the buffers and data for the scene
