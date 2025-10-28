@@ -1155,6 +1155,22 @@ private:
     nvvk::cmdMemoryBarrier(cmd, VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
   }
 
+  void createVoxelComputePiepline() {
+    SCOPED_TIMER(__FUNCTION__);
+
+    // For re-creation
+    vkDestroyPipeline(m_app->getDevice(), m_vxlPipeline, nullptr);
+    vkDestroyPipelineLayout(m_app->getDevice(), m_vxlPipelineLayout, nullptr);
+
+    enum eStageIndices
+    {
+        Compute,
+        Geometry,
+        ShaderCount
+    };
+    std::array<VkPipelineShaderStageCreateInfo, ShaderCount> stages{};
+  }
+
 private:
   // Application and core components
   nvapp::Application*     m_app{};             // The application framework
@@ -1210,6 +1226,11 @@ private:
   VkPhysicalDeviceAccelerationStructurePropertiesKHR m_asProperties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR};
 
   bool m_useRayTracing = true;
+  
+  //< Voxel Pipeline Components
+  nvvk::DescriptorPack m_vxlDescPack;
+  VkPipeline           m_vxlPipeline{};
+  VkPipelineLayout     m_vxlPipelineLayout{};
 };
 
 
