@@ -54,9 +54,6 @@
 #include "_autogen/foundation.slang.h"  // Local shader
 #include "_autogen/rtbasic.slang.h"     // Local Shader
 
-//< My Own Shader for Voxelization
-#include "_autogen/voxelization.slang.h"
-
 #include <nvaftermath/aftermath.hpp>       // Nsight Aftermath for crash tracking and shader debugging
 #include <nvapp/application.hpp>           // Application framework
 #include <nvapp/elem_camera.hpp>           // Camera manipulator
@@ -196,6 +193,7 @@ public:
     vkDestroyPipelineLayout(device, m_graphicPipelineLayout, nullptr);
     vkDestroyShaderEXT(device, m_vertexShader, nullptr);
     vkDestroyShaderEXT(device, m_fragmentShader, nullptr);
+    vkDestroyShaderEXT(device, m_voxelCShader, nullptr);
 
     m_allocator.destroyBuffer(m_sceneResource.bSceneInfo);
     m_allocator.destroyBuffer(m_sceneResource.bMeshes);
@@ -553,6 +551,9 @@ public:
     vkDestroyShaderEXT(m_app->getDevice(), m_vertexShader, nullptr);
     vkDestroyShaderEXT(m_app->getDevice(), m_fragmentShader, nullptr);
 
+    //< Voxel Compute Shader
+    vkDestroyShaderEXT(m_app->getDevice(), m_voxelCShader, nullptr);
+
     // Push constant is used to pass data to the shader at each frame
     const VkPushConstantRange pushConstantRange{
         .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
@@ -589,7 +590,14 @@ public:
     vkCreateShadersEXT(m_app->getDevice(), 1U, &shaderInfo, nullptr, &m_fragmentShader);
     NVVK_DBG_NAME(m_fragmentShader);
 
-    shaderInfo.stage    = VK_SHADER_STAGE_ALL;
+    //< Voxel Compute Shader Info
+    shaderInfo.stage     = VK_SHADER_STAGE_COMPUTE_BIT;
+    shaderInfo.nextStage = 0;   //< Will need to be changed later...
+    shaderInfo.pName     = "voxelComputeMain";
+    shaderInfo.codeSize  = shaderCode.codeSize;
+    shaderInfo.pCode     = shaderCode.pCode;
+    vkCreateShadersEXT(m_app->getDevice(), 1U, &shaderInfo, nullptr, &m_voxelCShader);
+    NVVK_DBG_NAME(m_voxelCShader);
   }
 
   //---------------------------------------------------------------------------------------------------------------
@@ -694,7 +702,6 @@ public:
 
     // Same shader for all meshes
     m_dynamicPipeline.cmdBindShaders(cmd, {.vertex = m_vertexShader, .fragment = m_fragmentShader});
-
 
     // We don't send vertex attributes, they are pulled in the shader
     VkVertexInputBindingDescription2EXT   bindingDescription   = {};
@@ -1168,6 +1175,9 @@ private:
   // Shaders
   VkShaderEXT m_vertexShader{};    // The vertex shader used to render the scene
   VkShaderEXT m_fragmentShader{};  // The fragment shader used to render the scene
+
+  //< Compute Shader
+  VkShaderEXT m_voxelCShader{};     //< For this shader, I've created it (and destroyed it where appropriate) to calculate the data for voxels
 
   // Scene information buffer (UBO)
   nvsamples::GltfSceneResource m_sceneResource{};  // The GLTF scene resource, contains all the buffers and data for the scene
