@@ -53,6 +53,7 @@
 #include "_autogen/tonemapper.slang.h"  //   "    "
 #include "_autogen/foundation.slang.h"  // Local shader
 #include "_autogen/rtbasic.slang.h"     // Local Shader
+#include "_autogen/vxlCompute.slang.h"
 
 #include <nvaftermath/aftermath.hpp>       // Nsight Aftermath for crash tracking and shader debugging
 #include <nvapp/application.hpp>           // Application framework
@@ -647,7 +648,7 @@ public:
         .size       = sizeof(shaderio::TutoPushConstant),
         .pValues    = &pushValues,  // Other values are passed later
     };
-
+    
     // Rendering the Sky
     if(m_sceneResource.sceneInfo.useSky)
     {
@@ -718,7 +719,7 @@ public:
       pushValues.normalMatrix  = glm::transpose(glm::inverse(glm::mat3(m_sceneResource.instances[i].transform)));
       pushValues.instanceIndex = int(i);  // The index of the instance in the m_instances vector
       vkCmdPushConstants2(cmd, &pushInfo);
-
+     
       // Get the buffer directly using the pre-computed mapping
       uint32_t            bufferIndex = m_sceneResource.meshToBufferIndex[meshIndex];
       const nvvk::Buffer& v           = m_sceneResource.bGltfDatas[bufferIndex];
@@ -1169,6 +1170,13 @@ private:
         ShaderCount
     };
     std::array<VkPipelineShaderStageCreateInfo, ShaderCount> stages{};
+  }
+
+  void createComputePipeline() {
+    SCOPED_TIMER(__FUNCTION__);
+
+    // Use pre-compiled shaders by default
+    VkShaderModuleCreateInfo shaderCode = compileSlangShader("vxlCompute.slang", vxlCompute_slang);
   }
 
 private:
