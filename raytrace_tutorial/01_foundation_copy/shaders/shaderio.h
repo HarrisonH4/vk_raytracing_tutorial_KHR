@@ -41,5 +41,12 @@ struct TutoPushConstant
   float2         metallicRoughnessOverride;  // Metallic and roughness override values
 };
 
+enum eVoxelBindingPoints
+{
+	container,
+	store,
+	temp
+};
+
 NAMESPACE_SHADERIO_END()
 #endif  // SHADERIO_H

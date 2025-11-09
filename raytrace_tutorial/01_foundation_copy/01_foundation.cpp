@@ -937,7 +937,7 @@ public:
     // For re-creation
     vkDestroyPipeline(m_app->getDevice(), m_rtPipeline, nullptr);
     vkDestroyPipelineLayout(m_app->getDevice(), m_rtPipelineLayout, nullptr);
-    //
+    //<<
     // Creating all shaders (placeholder for now)
     enum StageIndices
     {
@@ -1145,22 +1145,6 @@ private:
     nvvk::cmdMemoryBarrier(cmd, VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
   }
 
-  void createVoxelComputePiepline() {
-    SCOPED_TIMER(__FUNCTION__);
-
-    // For re-creation
-    vkDestroyPipeline(m_app->getDevice(), m_vxlPipeline, nullptr);
-    vkDestroyPipelineLayout(m_app->getDevice(), m_vxlPipelineLayout, nullptr);
-
-    enum eStageIndices
-    {
-        Compute,
-        Geometry,
-        ShaderCount
-    };
-    std::array<VkPipelineShaderStageCreateInfo, ShaderCount> stages{};
-  }
-
   void createComputePipeline() {
     SCOPED_TIMER(__FUNCTION__);
 
@@ -1195,6 +1179,34 @@ private:
     shaderInfo.pCode     = shaderCode.pCode;
     vkCreateShadersEXT(m_app->getDevice(), 1U, &shaderInfo, nullptr, &m_voxelCShader);
     NVVK_DBG_NAME(m_voxelCShader);
+
+    const VkPushConstantRange push_constant{VK_SHADER_STAGE_ALL, 0, sizeof(shaderio::TutoPushConstant)};
+
+    VkPipelineLayoutCreateInfo pipeline_layout_create_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    pipeline_layout_create_info.pushConstantRangeCount = 1;
+    pipeline_layout_create_info.pPushConstantRanges    = &push_constant;
+
+    createVoxelDescriptorPack();
+    //<<
+  }
+
+  void createVoxelDescriptorPack()
+  {
+    SCOPED_TIMER(__FUNCTION__);
+    nvvk::DescriptorBindings bindings;
+    bindings.addBinding({.binding         = shaderio::eVoxelBindingPoints::container,
+                         .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                         .descriptorCount = 1,
+                         .stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT});
+    bindings.addBinding({.binding         = shaderio::eVoxelBindingPoints::store,
+                         .descriptorType  = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                         .descriptorCount = 1,
+                         .stageFlags      = VK_SHADER_STAGE_COMPUTE_BIT});
+
+    // Creating a PUSH descriptor set and set layout from the bindings
+    m_vxlDescPack.init(bindings, m_app->getDevice(), 0, VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR);
+
+    LOGI("voxel descriptor layout created\n");
   }
 
 private:
@@ -1249,6 +1261,9 @@ private:
   VkPhysicalDeviceAccelerationStructurePropertiesKHR m_asProperties{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR};
 
   bool m_useRayTracing = true;
+
+  //< Voxel Descriptor Pack
+  nvvk::DescriptorPack m_vxlDescPack;
   
   //< Voxel Pipeline Components
   VkPipeline           m_vxlPipeline{};
