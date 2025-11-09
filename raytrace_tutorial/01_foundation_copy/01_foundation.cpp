@@ -321,6 +321,7 @@ public:
 
     if(m_useRayTracing)
     {
+      // Calculate Voxel Grid -> Raytrace Scene
       raytraceScene(cmd);
     }
     else
@@ -552,9 +553,6 @@ public:
     vkDestroyShaderEXT(m_app->getDevice(), m_vertexShader, nullptr);
     vkDestroyShaderEXT(m_app->getDevice(), m_fragmentShader, nullptr);
 
-    //< Voxel Compute Shader
-    vkDestroyShaderEXT(m_app->getDevice(), m_voxelCShader, nullptr);
-
     // Push constant is used to pass data to the shader at each frame
     const VkPushConstantRange pushConstantRange{
         .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
@@ -590,15 +588,6 @@ public:
     shaderInfo.pCode     = shaderCode.pCode;
     vkCreateShadersEXT(m_app->getDevice(), 1U, &shaderInfo, nullptr, &m_fragmentShader);
     NVVK_DBG_NAME(m_fragmentShader);
-
-    //< Voxel Compute Shader Info
-    shaderInfo.stage     = VK_SHADER_STAGE_COMPUTE_BIT;
-    shaderInfo.nextStage = 0;   //< Will need to be changed later...
-    shaderInfo.pName     = "voxelComputeMain";
-    shaderInfo.codeSize  = shaderCode.codeSize;
-    shaderInfo.pCode     = shaderCode.pCode;
-    vkCreateShadersEXT(m_app->getDevice(), 1U, &shaderInfo, nullptr, &m_voxelCShader);
-    NVVK_DBG_NAME(m_voxelCShader);
   }
 
   //---------------------------------------------------------------------------------------------------------------
@@ -948,7 +937,7 @@ public:
     // For re-creation
     vkDestroyPipeline(m_app->getDevice(), m_rtPipeline, nullptr);
     vkDestroyPipelineLayout(m_app->getDevice(), m_rtPipelineLayout, nullptr);
-
+    //
     // Creating all shaders (placeholder for now)
     enum StageIndices
     {
@@ -1177,6 +1166,35 @@ private:
 
     // Use pre-compiled shaders by default
     VkShaderModuleCreateInfo shaderCode = compileSlangShader("vxlCompute.slang", vxlCompute_slang);
+
+    // Push constant is used to pass data to the shader at each frame
+    const VkPushConstantRange pushConstantRange{
+        .stageFlags = VK_SHADER_STAGE_ALL_GRAPHICS,
+        .offset     = 0,
+        .size       = sizeof(shaderio::TutoPushConstant),
+    };
+
+    VkShaderCreateInfoEXT shaderInfo{
+        .sType                  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .codeType               = VK_SHADER_CODE_TYPE_SPIRV_EXT,
+        .pName                  = "main",
+        .setLayoutCount         = 1,
+        .pSetLayouts            = m_descPack.getLayoutPtr(),
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges    = &pushConstantRange,
+    };
+
+    //< Destroying the Compute Shader before recreating it.
+    vkDestroyShaderEXT(m_app->getDevice(), m_voxelCShader, nullptr);
+
+    //< Voxel Compute Shader Info
+    shaderInfo.stage     = VK_SHADER_STAGE_COMPUTE_BIT;
+    shaderInfo.nextStage = 0;  //< Will need to be changed later...
+    shaderInfo.pName     = "voxelComputeMain";
+    shaderInfo.codeSize  = shaderCode.codeSize;
+    shaderInfo.pCode     = shaderCode.pCode;
+    vkCreateShadersEXT(m_app->getDevice(), 1U, &shaderInfo, nullptr, &m_voxelCShader);
+    NVVK_DBG_NAME(m_voxelCShader);
   }
 
 private:
@@ -1199,9 +1217,6 @@ private:
   // Shaders
   VkShaderEXT m_vertexShader{};    // The vertex shader used to render the scene
   VkShaderEXT m_fragmentShader{};  // The fragment shader used to render the scene
-
-  //< Compute Shader
-  VkShaderEXT m_voxelCShader{};     //< For this shader, I've created it (and destroyed it where appropriate) to calculate the data for voxels
 
   // Scene information buffer (UBO)
   nvsamples::GltfSceneResource m_sceneResource{};  // The GLTF scene resource, contains all the buffers and data for the scene
@@ -1236,9 +1251,11 @@ private:
   bool m_useRayTracing = true;
   
   //< Voxel Pipeline Components
-  nvvk::DescriptorPack m_vxlDescPack;
   VkPipeline           m_vxlPipeline{};
   VkPipelineLayout     m_vxlPipelineLayout{};
+
+  //< Compute Shader
+  VkShaderEXT m_voxelCShader{};  //< For this shader, I've created it (and destroyed it where appropriate) to calculate the data for voxels
 };
 
 

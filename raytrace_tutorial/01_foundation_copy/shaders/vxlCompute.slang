@@ -1,48 +1,15 @@
 #include <nvshaders/slang_types.h>
-#include "common/shaders/pbr.h.slang"
-#include "shaderio.h"
+#include <nvshaders/functions.h.slang>
 
-// clang-format off
-[[vk::push_constant]]                       ConstantBuffer<TutoPushConstant> pushConst;
-// clang-format on
+#define WORKGROUP_SIZE 16
 
-//< Voxel Data Output
-struct voxelData {
-	float2 xDir;
-	float2 yDir;
-	float2 zDir;
-}
-
-layout (binding = 0) uniform ParameterUBO {
-    float deltaTime;
-} ubo;
-
-layout(std140, binding = 1) readonly buffer ParticleSSBOIn {
-   Particle particlesIn[ ];
-};
-
-layout(std140, binding = 2) buffer ParticleSSBOOut {
-   Particle particlesOut[ ];
-};
-
-layout (local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+//< Allows for GLSL definitions
+NAMESPACE_SHADERIO_BEGIN()
 
 [shader("compute")]
-voxelData voxelComputeMain() 
+[numthreads(WORKGROUP_SIZE, WORKGROUP_SIZE, 1)]
+float2 voxelComputeMain() 
 {
-    uint index = gl_GlobalInvocationID.x;  
-
-    Particle particleIn = particlesIn[index];
-
-    particlesOut[index].position = particleIn.position + particleIn.velocity.xy * ubo.deltaTime;
-    particlesOut[index].velocity = particleIn.velocity;
-
-    // Flip movement at window border
-    if ((particlesOut[index].position.x <= -1.0) || (particlesOut[index].position.x >= 1.0)) {
-        particlesOut[index].velocity.x = -particlesOut[index].velocity.x;
-    }
-    if ((particlesOut[index].position.y <= -1.0) || (particlesOut[index].position.y >= 1.0)) {
-        particlesOut[index].velocity.y = -particlesOut[index].velocity.y;
-    }
-
+	float2 index = (0, 0);
+	return index;
 }
