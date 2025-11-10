@@ -32,7 +32,7 @@ enum BindingPoints
   eTlas,          // Top-level acceleration structure
 };
 
-
+//< I am reusing the push constant as we need only this data (for now)
 struct TutoPushConstant
 {
   float3x3       normalMatrix;

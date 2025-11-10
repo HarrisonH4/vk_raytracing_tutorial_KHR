@@ -949,7 +949,7 @@ public:
     std::array<VkPipelineShaderStageCreateInfo, eShaderGroupCount> stages{};
     for(auto& s : stages)
       s.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-
+    
     // Compile shader, fallback to pre-compiled
     VkShaderModuleCreateInfo shaderCode = compileSlangShader("rtbasic.slang", rtbasic_slang);
 
@@ -1145,10 +1145,52 @@ private:
     nvvk::cmdMemoryBarrier(cmd, VK_PIPELINE_STAGE_2_RAY_TRACING_SHADER_BIT_KHR, VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT);
   }
 
+  //< Creates the Compute Shader for the Pipeline
+  void createComputeShader() {
+    //< Destroying the Compute Shader before recreating it.
+    vkDestroyShaderEXT(m_app->getDevice(), m_voxelCShader, nullptr);
+
+    //< Get the shader code to create the shader
+    VkShaderModuleCreateInfo shaderCode = compileSlangShader("vxlCompute.slang", vxlCompute_slang);
+
+    //< Create a Push Constant
+    const VkPushConstantRange pushConstantRange{
+        .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+        .offset     = 0,
+        .size       = sizeof(shaderio::TutoPushConstant),
+    };
+
+    //< Create the shader info
+    VkShaderCreateInfoEXT shaderInfo{
+        .sType                  = VK_STRUCTURE_TYPE_SHADER_CREATE_INFO_EXT,
+        .codeType               = VK_SHADER_CODE_TYPE_SPIRV_EXT,
+        .pName                  = "main",
+        .setLayoutCount         = 1,
+        .pSetLayouts            = m_vxlDescPack.getLayoutPtr(),
+        .pushConstantRangeCount = 1,
+        .pPushConstantRanges    = &pushConstantRange,
+    };
+
+    //< Compute Shader 
+    shaderInfo.stage     = VK_SHADER_STAGE_COMPUTE_BIT;
+    shaderInfo.nextStage = 0;
+    shaderInfo.pName     = "voxelComputeMain";  // The entry point of the vertex shader
+    shaderInfo.codeSize  = shaderCode.codeSize;
+    shaderInfo.pCode     = shaderCode.pCode;
+    vkCreateShadersEXT(m_app->getDevice(), 1U, &shaderInfo, nullptr, &m_voxelCShader);
+    NVVK_DBG_NAME(m_voxelCShader);
+  }
+
+  //< Creates the Compute Pipeline for the Voxelization
   void createComputePipeline() {
     SCOPED_TIMER(__FUNCTION__);
 
-    // Use pre-compiled shaders by default
+    // 1st - Create Descriptor Pack
+    // 2nd - Create Compute Shader
+    createVoxelDescriptorPack();
+    createComputeShader();
+
+    //< Get the shader code to create the pipeline
     VkShaderModuleCreateInfo shaderCode = compileSlangShader("vxlCompute.slang", vxlCompute_slang);
 
     // Push constant is used to pass data to the shader at each frame
@@ -1158,36 +1200,46 @@ private:
         .size       = sizeof(shaderio::TutoPushConstant),
     };
 
-    VkShaderCreateInfoEXT shaderInfo{
+    VkPipelineShaderStageCreateInfo shaderInfo{
         .sType                  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-        .codeType               = VK_SHADER_CODE_TYPE_SPIRV_EXT,
+        .pNext                  = &shaderCode,
+        .stage                  = VK_SHADER_STAGE_COMPUTE_BIT,
         .pName                  = "main",
-        .setLayoutCount         = 1,
-        .pSetLayouts            = m_descPack.getLayoutPtr(),
-        .pushConstantRangeCount = 1,
-        .pPushConstantRanges    = &pushConstantRange,
     };
 
-    //< Destroying the Compute Shader before recreating it.
-    vkDestroyShaderEXT(m_app->getDevice(), m_voxelCShader, nullptr);
+    //< Voxel Pipeline Creation
+    const VkPushConstantRange push_constant{VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(shaderio::TutoPushConstant)};
 
-    //< Voxel Compute Shader Info
-    shaderInfo.stage     = VK_SHADER_STAGE_COMPUTE_BIT;
-    shaderInfo.nextStage = 0;  //< Will need to be changed later...
-    shaderInfo.pName     = "voxelComputeMain";
-    shaderInfo.codeSize  = shaderCode.codeSize;
-    shaderInfo.pCode     = shaderCode.pCode;
-    vkCreateShadersEXT(m_app->getDevice(), 1U, &shaderInfo, nullptr, &m_voxelCShader);
-    NVVK_DBG_NAME(m_voxelCShader);
-
-    const VkPushConstantRange push_constant{VK_SHADER_STAGE_ALL, 0, sizeof(shaderio::TutoPushConstant)};
-
-    VkPipelineLayoutCreateInfo pipeline_layout_create_info{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    //< Pipeline Creation Info
+    VkPipelineLayoutCreateInfo pipeline_layout_create_info{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
     pipeline_layout_create_info.pushConstantRangeCount = 1;
     pipeline_layout_create_info.pPushConstantRanges    = &push_constant;
 
-    createVoxelDescriptorPack();
-    //<<
+    //< Acquire the Descriptor Sets for the Pipeline Creation Info
+    std::array<VkDescriptorSetLayout, 2> layouts = {{m_descPack.getLayout(), m_vxlDescPack.getLayout()}};
+    pipeline_layout_create_info.setLayoutCount   = uint32_t(layouts.size());
+    pipeline_layout_create_info.pSetLayouts      = layouts.data();
+
+    NVVK_CHECK(vkCreatePipelineLayout(m_app->getDevice(), &pipeline_layout_create_info, nullptr, &m_vxlPipelineLayout));
+    NVVK_DBG_NAME(m_vxlPipelineLayout);
+
+    vkCreateComputePipelines(m_app->getDevice(), );
+    vkCreateComputePipelines(m_app->getDevice(), {}, 1, &pipeline_layout_create_info, nullptr, &m_vxlPipeline);
+
+    /*
+    // Assemble the shader stages and recursion depth info into the ray tracing pipeline
+    VkRayTracingPipelineCreateInfoKHR rtPipelineInfo{VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR};
+    rtPipelineInfo.stageCount                   = static_cast<uint32_t>(stages.size());
+    rtPipelineInfo.pStages                      = stages.data();
+    rtPipelineInfo.groupCount                   = static_cast<uint32_t>(shader_groups.size());
+    rtPipelineInfo.pGroups                      = shader_groups.data();
+    rtPipelineInfo.maxPipelineRayRecursionDepth = std::max(3U, m_rtProperties.maxRayRecursionDepth);
+    rtPipelineInfo.layout                       = m_rtPipelineLayout;
+    vkCreateRayTracingPipelinesKHR(m_app->getDevice(), {}, {}, 1, &rtPipelineInfo, nullptr, &m_rtPipeline);
+    NVVK_DBG_NAME(m_rtPipeline);
+    */
+
+    LOGI("Voxel pipeline layout created successfully\n");
   }
 
   void createVoxelDescriptorPack()
@@ -1205,6 +1257,13 @@ private:
 
     // Creating a PUSH descriptor set and set layout from the bindings
     m_vxlDescPack.init(bindings, m_app->getDevice(), 0, VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR);
+
+    // Number for Frames in Flight (I can't find the variable for this)
+    const int MAX_FRAMES_IN_FLIGHT = 2;
+
+    VkDescriptorBufferInfo storageBufferCurrentFrame {};
+    storageBufferCurrentFrame.buffer =  
+    
 
     LOGI("voxel descriptor layout created\n");
   }
@@ -1268,6 +1327,9 @@ private:
   //< Voxel Pipeline Components
   VkPipeline           m_vxlPipeline{};
   VkPipelineLayout     m_vxlPipelineLayout{};
+
+  nvvk::Buffer m_vxlInputBuffer;
+  nvvk::Buffer m_vxlOutputBuffer;
 
   //< Compute Shader
   VkShaderEXT m_voxelCShader{};  //< For this shader, I've created it (and destroyed it where appropriate) to calculate the data for voxels
