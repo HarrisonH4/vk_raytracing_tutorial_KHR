@@ -1149,7 +1149,7 @@ private:
   void createComputeShader() {
     //< Destroying the Compute Shader before recreating it.
     vkDestroyShaderEXT(m_app->getDevice(), m_voxelCShader, nullptr);
-
+    
     //< Get the shader code to create the shader
     VkShaderModuleCreateInfo shaderCode = compileSlangShader("vxlCompute.slang", vxlCompute_slang);
 
@@ -1170,7 +1170,7 @@ private:
         .pushConstantRangeCount = 1,
         .pPushConstantRanges    = &pushConstantRange,
     };
-
+    
     //< Compute Shader 
     shaderInfo.stage     = VK_SHADER_STAGE_COMPUTE_BIT;
     shaderInfo.nextStage = 0;
@@ -1223,8 +1223,12 @@ private:
     NVVK_CHECK(vkCreatePipelineLayout(m_app->getDevice(), &pipeline_layout_create_info, nullptr, &m_vxlPipelineLayout));
     NVVK_DBG_NAME(m_vxlPipelineLayout);
 
-    vkCreateComputePipelines(m_app->getDevice(), );
-    vkCreateComputePipelines(m_app->getDevice(), {}, 1, &pipeline_layout_create_info, nullptr, &m_vxlPipeline);
+    VkComputePipelineCreateInfo cmpPipelineInfo{};
+    cmpPipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    cmpPipelineInfo.layout = m_vxlPipelineLayout;
+    cmpPipelineInfo.stage  = shaderInfo;
+
+    vkCreateComputePipelines(m_app->getDevice(), {}, 1, &cmpPipelineInfo, nullptr, &m_vxlPipeline);
 
     /*
     // Assemble the shader stages and recursion depth info into the ray tracing pipeline
@@ -1261,10 +1265,11 @@ private:
     // Number for Frames in Flight (I can't find the variable for this)
     const int MAX_FRAMES_IN_FLIGHT = 2;
 
-    VkDescriptorBufferInfo storageBufferCurrentFrame {};
-    storageBufferCurrentFrame.buffer =  
+    for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        VkDescriptorBufferInfo storageBufferCurrentFrame {};
+      storageBufferCurrentFrame.buffer; 
+    }
     
-
     LOGI("voxel descriptor layout created\n");
   }
 
@@ -1328,8 +1333,7 @@ private:
   VkPipeline           m_vxlPipeline{};
   VkPipelineLayout     m_vxlPipelineLayout{};
 
-  nvvk::Buffer m_vxlInputBuffer;
-  nvvk::Buffer m_vxlOutputBuffer;
+  std::vector<nvvk::Buffer> m_vxlBuffers;
 
   //< Compute Shader
   VkShaderEXT m_voxelCShader{};  //< For this shader, I've created it (and destroyed it where appropriate) to calculate the data for voxels
